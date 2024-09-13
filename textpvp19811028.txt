@@ -1,0 +1,271 @@
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local camera = game.Workspace.CurrentCamera
+local isTracking = false
+local stopScript = false
+local isNoclip = false
+local isLocked = false
+local lockedPlayer = nil
+local playersDisplay = {}
+local expOn = false
+local isComeActive = false
+
+function getNearestPlayer()
+    local nearestPlayer = nil
+    local shortestDistance = math.huge
+
+    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local otherHumanoidRootPart = otherPlayer.Character.HumanoidRootPart
+            local distance = (humanoidRootPart.Position - otherHumanoidRootPart.Position).magnitude
+            
+            if distance < shortestDistance then
+                shortestDistance = distance
+                nearestPlayer = otherPlayer
+            end
+        end
+    end
+
+    return nearestPlayer
+end
+
+local function setNoclip(state)
+    isNoclip = state
+    for _, part in pairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = not state
+        end
+    end
+end
+
+local function updatePlayerDisplay()
+    for _, display in pairs(playersDisplay) do
+        display:Destroy()
+    end
+    playersDisplay = {}
+
+    if not expOn then return end
+
+    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local billboardGui = Instance.new("BillboardGui")
+            billboardGui.Adornee = otherPlayer.Character.HumanoidRootPart
+            billboardGui.Size = UDim2.new(0, 200, 0, 50)
+            billboardGui.StudsOffset = Vector3.new(0, 3, 0)
+            billboardGui.Parent = camera
+
+            local textLabel = Instance.new("TextLabel")
+            textLabel.Size = UDim2.new(1, 0, 1, 0)
+            textLabel.BackgroundTransparency = 1
+            textLabel.TextStrokeTransparency = 0.5
+            textLabel.Text = otherPlayer.Name .. "\n" .. math.floor((humanoidRootPart.Position - otherPlayer.Character.HumanoidRootPart.Position).magnitude) .. " studs"
+            textLabel.Parent = billboardGui
+
+            if expOn then
+                if otherPlayer == lockedPlayer then
+                    textLabel.TextColor3 = Color3.new(0, 1, 0)
+                elseif otherPlayer == getNearestPlayer() then
+                    textLabel.TextColor3 = Color3.new(1, 0, 0)
+                end
+            end
+
+            table.insert(playersDisplay, billboardGui)
+        end
+    end
+end
+
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+
+local onButton = Instance.new("TextButton", screenGui)
+onButton.Size = UDim2.new(0, 50, 0, 25)
+onButton.Position = UDim2.new(0, 250, 0, 10)
+onButton.Text = "On"
+onButton.TextColor3 = Color3.new(1, 0, 0)
+onButton.ZIndex = 2
+
+local offButton = Instance.new("TextButton", screenGui)
+offButton.Size = UDim2.new(0, 50, 0, 25)
+offButton.Position = UDim2.new(0, 250, 0, 10)
+offButton.Text = "Off"
+offButton.TextColor3 = Color3.new(0, 1, 0)
+offButton.ZIndex = 1
+
+local stopButton = Instance.new("TextButton", screenGui)
+stopButton.Size = UDim2.new(0, 50, 0, 25)
+stopButton.Position = UDim2.new(0, 190, 0, 10)
+stopButton.Text = "Stop"
+stopButton.TextColor3 = Color3.new(1, 0, 0)
+stopButton.ZIndex = 1
+
+local yesNoclipButton = Instance.new("TextButton", screenGui)
+yesNoclipButton.Size = UDim2.new(0, 50, 0, 25)
+yesNoclipButton.Position = UDim2.new(0, 310, 0, 10)
+yesNoclipButton.Text = "Yes Noclip"
+yesNoclipButton.TextColor3 = Color3.new(1, 0, 0)
+yesNoclipButton.ZIndex = 2
+
+local noNoclipButton = Instance.new("TextButton", screenGui)
+noNoclipButton.Size = UDim2.new(0, 50, 0, 25)
+noNoclipButton.Position = UDim2.new(0, 310, 0, 10)
+noNoclipButton.Text = "No Noclip"
+noNoclipButton.TextColor3 = Color3.new(0, 1, 0)
+noNoclipButton.ZIndex = 1
+
+local lockedButton = Instance.new("TextButton", screenGui)
+lockedButton.Size = UDim2.new(0, 50, 0, 25)
+lockedButton.Position = UDim2.new(0, 370, 0, 10)
+lockedButton.Text = "Yes Locked"
+lockedButton.TextColor3 = Color3.new(1, 0, 0)
+lockedButton.ZIndex = 2
+
+local upLockedButton = Instance.new("TextButton", screenGui)
+upLockedButton.Size = UDim2.new(0, 50, 0, 25)
+upLockedButton.Position = UDim2.new(0, 370, 0, 10)
+upLockedButton.Text = "No Locked"
+upLockedButton.TextColor3 = Color3.new(0, 1, 0)
+upLockedButton.ZIndex = 1
+
+local comeButton = Instance.new("TextButton", screenGui)
+comeButton.Size = UDim2.new(0, 50, 0, 25)
+comeButton.Position = UDim2.new(0, 430, 0, 10)
+comeButton.Text = "Come"
+comeButton.TextColor3 = Color3.new(1, 0, 0)
+comeButton.ZIndex = 1
+
+local expButton = Instance.new("TextButton", screenGui)
+expButton.Size = UDim2.new(0, 50, 0, 25)
+expButton.Position = UDim2.new(0, 490, 0, 10)
+expButton.Text = "On exp"
+expButton.TextColor3 = Color3.new(1, 0, 0)
+expButton.ZIndex = 2
+
+local offExpButton = Instance.new("TextButton", screenGui)
+offExpButton.Size = UDim2.new(0, 50, 0, 25)
+offExpButton.Position = UDim2.new(0, 490, 0, 10)
+offExpButton.Text = "Off exp"
+offExpButton.TextColor3 = Color3.new(0, 1, 0)
+offExpButton.ZIndex = 1
+
+local onComeButton = Instance.new("TextButton", screenGui)
+onComeButton.Size = UDim2.new(0, 50, 0, 25)
+onComeButton.Position = UDim2.new(0, 550, 0, 10)
+onComeButton.Text = "On Come"
+onComeButton.TextColor3 = Color3.new(1, 0, 0)
+onComeButton.ZIndex = 2
+
+local offComeButton = Instance.new("TextButton", screenGui)
+offComeButton.Size = UDim2.new(0, 50, 0, 25)
+offComeButton.Position = UDim2.new(0, 550, 0, 10)
+offComeButton.Text = "Off Come"
+offComeButton.TextColor3 = Color3.new(0, 1, 0)
+offComeButton.ZIndex = 1
+
+local function performCome()
+    local targetPlayer = lockedPlayer or getNearestPlayer()
+    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        humanoidRootPart.CFrame = CFrame.new(targetPlayer.Character.HumanoidRootPart.Position)
+    end
+end
+
+local function swapButtonZIndex(buttonA, buttonB)
+    local tempZIndex = buttonA.ZIndex
+    buttonA.ZIndex = buttonB.ZIndex
+    buttonB.ZIndex = tempZIndex
+end
+
+onButton.MouseButton1Click:Connect(function()
+    isTracking = true
+    swapButtonZIndex(onButton, offButton)
+end)
+
+offButton.MouseButton1Click:Connect(function()
+    isTracking = false
+    swapButtonZIndex(onButton, offButton)
+end)
+
+yesNoclipButton.MouseButton1Click:Connect(function()
+    setNoclip(true)
+    swapButtonZIndex(yesNoclipButton, noNoclipButton)
+end)
+
+noNoclipButton.MouseButton1Click:Connect(function()
+    setNoclip(false)
+    swapButtonZIndex(yesNoclipButton, noNoclipButton)
+end)
+
+lockedButton.MouseButton1Click:Connect(function()
+    isLocked = true
+    lockedPlayer = getNearestPlayer()
+    swapButtonZIndex(lockedButton, upLockedButton)
+end)
+
+upLockedButton.MouseButton1Click:Connect(function()
+    isLocked = false
+    lockedPlayer = nil
+    swapButtonZIndex(lockedButton, upLockedButton)
+end)
+
+comeButton.MouseButton1Click:Connect(function()
+    performCome()
+end)
+
+expButton.MouseButton1Click:Connect(function()
+    expOn = true
+    updatePlayerDisplay()
+    swapButtonZIndex(expButton, offExpButton)
+end)
+
+offExpButton.MouseButton1Click:Connect(function()
+    expOn = false
+    updatePlayerDisplay()
+    swapButtonZIndex(expButton, offExpButton)
+end)
+
+stopButton.MouseButton1Click:Connect(function()
+    stopScript = true
+end)
+
+local function activateCome()
+    while isComeActive and not stopScript do
+        performCome()
+        wait(0.01)
+    end
+end
+
+onComeButton.MouseButton1Click:Connect(function()
+    isComeActive = true
+    swapButtonZIndex(onComeButton, offComeButton)
+    spawn(activateCome)
+end)
+
+offComeButton.MouseButton1Click:Connect(function()
+    isComeActive = false
+    swapButtonZIndex(onComeButton, offComeButton)
+end)
+
+spawn(function()
+    while not stopScript do
+        if isNoclip then
+            setNoclip(true)
+        end
+        wait(0.01)
+    end
+end)
+
+while not stopScript do
+    if isTracking then
+        local targetPlayer = lockedPlayer or getNearestPlayer()
+        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local direction = (targetPlayer.Character.HumanoidRootPart.Position - humanoidRootPart.Position).unit
+            humanoidRootPart.CFrame = CFrame.new(humanoidRootPart.Position, humanoidRootPart.Position + direction)
+            camera.CFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + direction)
+        end
+    end
+    if expOn then
+        updatePlayerDisplay()
+    end
+    wait(0.01)
+end
+
+screenGui:Destroy()
